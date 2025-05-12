@@ -8,22 +8,29 @@
 </head>
 <body>
     <div class="container">
-        <h1>Upload Newspaper Image</h1>
+        <h1>Newspaper Text Recognition</h1>
         <form action="/process/" method="post" enctype="multipart/form-data">
             <div>
-                <label for="file">Choose image:</label>
+                <label for="file">Upload Newspaper Image</label>
                 <input type="file" id="file" name="file" accept="image/*" required>
             </div>
             <div>
-                <label for="language">Select Language:</label>
+                <label for="language">Select Language</label>
                 <select id="language" name="language">
                     <option value="en">English</option>
                     <option value="hi">Hindi</option>
                     <option value="te">Telugu</option>
                 </select>
             </div>
-            <button type="submit">Process Image</button>
+            <button type="submit">Extract Text</button>
         </form>
+    </div>
+
+    <hr class="divider">
+
+    <div class="recent-uploads">
+        <h2>Recently Processed</h2>
+        <a href="/list_uploads/" class="upload-link">View all processed uploads →</a>
     </div>
 </body>
 </html>

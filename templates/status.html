@@ -7,23 +7,46 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="results-container">
-        <h1>Processing Status (Upload ID: <span id="uploadId">{{ upload_id }}</span>)</h1>
-        <div id="status">Status: Loading...</div>
-        <div id="progress">Progress: 0%</div>
-        <div id="logs" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
-            <h3>Logs:</h3>
-            <ul id="logList">
-                <!-- Logs will be appended here -->
-            </ul>
+    <div class="status-page-wrapper"> 
+        <div class="container main-status-area"> 
+            <h1>Processing Status (Upload ID: <span id="uploadId">{{ upload_id }}</span>)</h1>
+            <div id="status">Status: Loading...</div>
+            <div id="progress">Progress: 0%</div>
+
+            <div id="results" style="margin-top: 20px;">
+                <h3>Results:</h3>
+                <div class="results-grid">
+                    <!-- Processed items will be displayed here as a grid -->
+                </div>
+            </div>
+             <div id="error" style="color: #ff6b6b; margin-top: 20px;"></div>
+
+            <p style="margin-top: 20px;"><a href="/">Upload another image</a></p>
         </div>
-        <div id="results" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
-            <h3>Results:</h3>
-            <!-- Processed items will be displayed here -->
-        </div>
-        <div id="error" style="color: red; margin-top: 20px;"></div>
-        
-        <p style="margin-top: 20px;"><a href="/">Upload another image</a></p>
+
+        <div class="logs-sidebar"> 
+             <h3>Logs:</h3>
+             <ul id="logList">
+                 <!-- Logs will be appended here -->
+             </ul>
+         </div>
+    </div>
+
+    <!-- Modal Structure -->
+    <div class="modal-backdrop hidden"></div>
+    <div id="resultModal" class="modal hidden">
+         <div class="modal-content">
+             <span class="close-button" onclick="closeModal()">&times;</span>
+             <img id="modalImage" src="" alt="Cropped Newspaper Section">
+             <h4>Extracted Text:</h4>
+             <p id="modalText"></p>
+             <div id="modalAudioSection"></div>
+             <div id="modalSummarySection" style="margin-top: 15px;"></div>
+             <div class="modal-buttons">
+                 <button id="modalGenerateAudioButton">Generate Audio</button>
+                 <button id="modalSummarizeButton">Summarize Text</button>
+             </div>
+         </div>
     </div>
 
     <script>
@@ -31,9 +54,20 @@
         const statusDiv = document.getElementById('status');
         const progressDiv = document.getElementById('progress');
         const logList = document.getElementById('logList');
-        const resultsDiv = document.getElementById('results');
+        const resultsGrid = document.querySelector('.results-grid'); 
         const errorDiv = document.getElementById('error');
         let lastLogCount = 0;
+        let processedResults = []; 
+
+        // Modal Elements
+        const modalBackdrop = document.querySelector('.modal-backdrop');
+        const resultModal = document.getElementById('resultModal');
+        const modalImage = document.getElementById('modalImage');
+        const modalText = document.getElementById('modalText');
+        const modalAudioSection = document.getElementById('modalAudioSection');
+        const modalSummarySection = document.getElementById('modalSummarySection');
+        const modalGenerateAudioButton = document.getElementById('modalGenerateAudioButton');
+        const modalSummarizeButton = document.getElementById('modalSummarizeButton');
 
         async function fetchStatus() {
             try {
@@ -41,73 +75,101 @@
                 if (!response.ok) {
                     if (response.status === 404) {
                          statusDiv.textContent = 'Status: Not Found. The task may have expired or the server restarted.';
-                         clearInterval(statusInterval); // Stop polling
+                         clearInterval(statusInterval);
                          return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                
+
                 statusDiv.textContent = `Status: ${data.status}`;
                 progressDiv.textContent = `Progress: ${(data.progress * 100).toFixed(0)}%`;
 
-                // Append new logs
                 if (data.logs && data.logs.length > lastLogCount) {
                     for (let i = lastLogCount; i < data.logs.length; i++) {
                         const li = document.createElement('li');
                         li.textContent = data.logs[i];
                         logList.appendChild(li);
                     }
+                    logList.scrollTop = logList.scrollHeight; 
                     lastLogCount = data.logs.length;
                 }
 
                 if (data.status === 'completed') {
-                    clearInterval(statusInterval); // Stop polling
-                    displayResults(data.results);
+                    clearInterval(statusInterval);
+                    processedResults = data.results || []; 
+                    displayResults(processedResults);
                 } else if (data.status === 'failed') {
-                    clearInterval(statusInterval); // Stop polling
+                    clearInterval(statusInterval);
                     errorDiv.textContent = `Error: ${data.error}`;
-                    resultsDiv.innerHTML = ''; // Clear results section on error
+                    resultsGrid.innerHTML = ''; 
                 }
 
             } catch (error) {
                 console.error('Failed to fetch status:', error);
                 statusDiv.textContent = `Status: Error fetching status - ${error.message}`;
-                clearInterval(statusInterval); // Stop polling on error
+                clearInterval(statusInterval);
             }
         }
 
         function displayResults(results) {
-            resultsDiv.innerHTML = '<h3>Results:</h3>'; // Clear previous content
+            resultsGrid.innerHTML = ''; 
             if (results && results.length > 0) {
                 results.forEach((item, index) => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.classList.add('result-item');
-                    itemDiv.innerHTML = `
-                        <h3>Detected Item ${index + 1}</h3>
+                    const gridItem = document.createElement('div');
+                    gridItem.classList.add('grid-item');
+                    gridItem.onclick = () => openModal(index); 
+                    gridItem.innerHTML = `
                         <img src="${item.image_path}" alt="Cropped Newspaper Section">
-                        <h4>Extracted Text:</h4>
-                        <p>${item.text}</p>
-                        <div id="audioSection_${index}">
-                             <!-- Audio will be loaded here -->
-                        </div>
-                        <div id="summarySection_${index}" style="margin-top: 15px;">
-                            <!-- Summary will be loaded here -->
-                        </div>
-                         <button onclick="requestAudio('${uploadId}', ${index})">Generate Audio</button>
-                         <button onclick="requestSummary('${uploadId}', ${index})">Summarize Text</button>
+                        <p>${item.text.split(' ').slice(0, 15).join(' ')}...</p> 
                     `;
-                    resultsDiv.appendChild(itemDiv);
+                    resultsGrid.appendChild(gridItem);
                 });
             } else {
-                resultsDiv.innerHTML += '<p>No news sections detected or processed.</p>';
+                resultsGrid.innerHTML = '<p>No news sections detected or processed.</p>';
             }
         }
 
-        // Placeholder functions for on-demand audio and summary
+        function openModal(index) {
+            const item = processedResults[index];
+            if (!item) return;
+
+            modalImage.src = item.image_path;
+            modalText.textContent = item.text; 
+            modalAudioSection.innerHTML = ''; 
+            modalSummarySection.innerHTML = ''; 
+            
+            // Fix: Make sure buttons are properly defined and have parent nodes
+            if (modalGenerateAudioButton) {
+                modalGenerateAudioButton.onclick = () => requestAudio(uploadId, index);
+            }
+            
+            if (modalSummarizeButton) {
+                modalSummarizeButton.onclick = () => requestSummary(uploadId, index);
+            }
+
+            modalBackdrop.classList.remove('hidden');
+            resultModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modalBackdrop.classList.add('hidden');
+            resultModal.classList.add('hidden');
+             const audioElem = modalAudioSection.querySelector('audio');
+             if (audioElem) {
+                  audioElem.pause();
+             }
+        }
+
         async function requestAudio(uploadId, boxIndex) {
-             const audioSection = document.getElementById(`audioSection_${boxIndex}`);
-             audioSection.innerHTML = '<p>Generating audio...</p>';
+             const button = modalGenerateAudioButton;
+             const originalText = button.textContent;
+             const loadingText = 'Generating...';
+
+             button.disabled = true;
+             button.textContent = loadingText;
+             modalAudioSection.innerHTML = ''; 
+
              try {
                  const response = await fetch(`/api/generate_audio/${uploadId}/${boxIndex}`);
                  if (!response.ok) {
@@ -115,7 +177,7 @@
                  }
                  const data = await response.json();
                  if (data.audio_path) {
-                      audioSection.innerHTML = `
+                      modalAudioSection.innerHTML = `
                          <h4>Audio:</h4>
                          <audio controls>
                              <source src="${data.audio_path}" type="audio/mpeg">
@@ -123,17 +185,26 @@
                          </audio>
                       `;
                  } else {
-                      audioSection.innerHTML = '<p>No audio generated (no text found).</p>';
+                      modalAudioSection.innerHTML = '<p>No audio generated (no text found or error).</p>';
                  }
              } catch (error) {
-                 audioSection.innerHTML = `<p style="color: red;">Error generating audio: ${error.message}</p>`;
+                 modalAudioSection.innerHTML = `<p style="color: #ff6b6b;">Error generating audio: ${error.message}</p>`;
                  console.error('Error generating audio:', error);
+             } finally {
+                 button.disabled = false;
+                 button.textContent = originalText;
              }
         }
 
         async function requestSummary(uploadId, boxIndex) {
-             const summarySection = document.getElementById(`summarySection_${boxIndex}`);
-             summarySection.innerHTML = '<p>Generating summary...</p>';
+             const button = modalSummarizeButton;
+             const originalText = button.textContent;
+             const loadingText = 'Summarizing...';
+
+             button.disabled = true;
+             button.textContent = loadingText;
+             modalSummarySection.innerHTML = ''; 
+
              try {
                  const response = await fetch(`/api/summarize/${uploadId}/${boxIndex}`);
                  if (!response.ok) {
@@ -141,23 +212,26 @@
                  }
                  const data = await response.json();
                  if (data.summary) {
-                      summarySection.innerHTML = `
+                      modalSummarySection.innerHTML = `
                          <h4>Summary:</h4>
                          <p>${data.summary}</p>
                       `;
                  } else {
-                       summarySection.innerHTML = '<p>No summary generated (could not process text).</p>';
+                       modalSummarySection.innerHTML = '<p>No summary generated (could not process text).</p>';
                  }
              } catch (error) {
-                 summarySection.innerHTML = `<p style="color: red;">Error generating summary: ${error.message}</p>`;
+                 modalSummarySection.innerHTML = `<p style="color: #ff6b6b;">Error generating summary: ${error.message}</p>`;
                  console.error('Error generating summary:', error);
+             } finally {
+                 button.disabled = false;
+                 button.textContent = originalText;
              }
         }
 
-        // Poll for status updates every 3 seconds
+        modalBackdrop.onclick = closeModal;
+
         const statusInterval = setInterval(fetchStatus, 3000);
 
-        // Initial fetch
         fetchStatus();
 
     </script>
