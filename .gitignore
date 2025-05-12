@@ -148,3 +148,4 @@ cython_debug/
 .history/
 
 # End of https://mrkandreev.name/snippets/gitignore-generator/#Python,VisualStudioCode
+processed_files/

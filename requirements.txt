@@ -2,7 +2,8 @@ opencv-python
 pytesseract
 gtts
 ultralytics
-python-telegram-bot==13.8
 fastapi
 python-multipart
 uvicorn
+google-generativeai
+langdetect

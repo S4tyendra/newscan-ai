@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploaded Files</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Uploaded Files</h1>
+        {% if upload_ids %}
+            <ul>
+                {% for upload_id in upload_ids %}
+                    <li><a href="/status/{{ upload_id }}">{{ upload_id }}</a></li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No files have been uploaded yet.</p>
+        {% endif %}
+        <p><a href="/">Upload new image</a></p>
+    </div>
+</body>
+</html>

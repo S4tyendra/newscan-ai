@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Status</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="results-container">
+        <h1>Processing Status (Upload ID: <span id="uploadId">{{ upload_id }}</span>)</h1>
+        <div id="status">Status: Loading...</div>
+        <div id="progress">Progress: 0%</div>
+        <div id="logs" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+            <h3>Logs:</h3>
+            <ul id="logList">
+                <!-- Logs will be appended here -->
+            </ul>
+        </div>
+        <div id="results" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+            <h3>Results:</h3>
+            <!-- Processed items will be displayed here -->
+        </div>
+        <div id="error" style="color: red; margin-top: 20px;"></div>
+        
+        <p style="margin-top: 20px;"><a href="/">Upload another image</a></p>
+    </div>
+
+    <script>
+        const uploadId = document.getElementById('uploadId').textContent;
+        const statusDiv = document.getElementById('status');
+        const progressDiv = document.getElementById('progress');
+        const logList = document.getElementById('logList');
+        const resultsDiv = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+        let lastLogCount = 0;
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`/api/status/${uploadId}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                         statusDiv.textContent = 'Status: Not Found. The task may have expired or the server restarted.';
+                         clearInterval(statusInterval); // Stop polling
+                         return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                statusDiv.textContent = `Status: ${data.status}`;
+                progressDiv.textContent = `Progress: ${(data.progress * 100).toFixed(0)}%`;
+
+                // Append new logs
+                if (data.logs && data.logs.length > lastLogCount) {
+                    for (let i = lastLogCount; i < data.logs.length; i++) {
+                        const li = document.createElement('li');
+                        li.textContent = data.logs[i];
+                        logList.appendChild(li);
+                    }
+                    lastLogCount = data.logs.length;
+                }
+
+                if (data.status === 'completed') {
+                    clearInterval(statusInterval); // Stop polling
+                    displayResults(data.results);
+                } else if (data.status === 'failed') {
+                    clearInterval(statusInterval); // Stop polling
+                    errorDiv.textContent = `Error: ${data.error}`;
+                    resultsDiv.innerHTML = ''; // Clear results section on error
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+                statusDiv.textContent = `Status: Error fetching status - ${error.message}`;
+                clearInterval(statusInterval); // Stop polling on error
+            }
+        }
+
+        function displayResults(results) {
+            resultsDiv.innerHTML = '<h3>Results:</h3>'; // Clear previous content
+            if (results && results.length > 0) {
+                results.forEach((item, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.classList.add('result-item');
+                    itemDiv.innerHTML = `
+                        <h3>Detected Item ${index + 1}</h3>
+                        <img src="${item.image_path}" alt="Cropped Newspaper Section">
+                        <h4>Extracted Text:</h4>
+                        <p>${item.text}</p>
+                        <div id="audioSection_${index}">
+                             <!-- Audio will be loaded here -->
+                        </div>
+                        <div id="summarySection_${index}" style="margin-top: 15px;">
+                            <!-- Summary will be loaded here -->
+                        </div>
+                         <button onclick="requestAudio('${uploadId}', ${index})">Generate Audio</button>
+                         <button onclick="requestSummary('${uploadId}', ${index})">Summarize Text</button>
+                    `;
+                    resultsDiv.appendChild(itemDiv);
+                });
+            } else {
+                resultsDiv.innerHTML += '<p>No news sections detected or processed.</p>';
+            }
+        }
+
+        // Placeholder functions for on-demand audio and summary
+        async function requestAudio(uploadId, boxIndex) {
+             const audioSection = document.getElementById(`audioSection_${boxIndex}`);
+             audioSection.innerHTML = '<p>Generating audio...</p>';
+             try {
+                 const response = await fetch(`/api/generate_audio/${uploadId}/${boxIndex}`);
+                 if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                 }
+                 const data = await response.json();
+                 if (data.audio_path) {
+                      audioSection.innerHTML = `
+                         <h4>Audio:</h4>
+                         <audio controls>
+                             <source src="${data.audio_path}" type="audio/mpeg">
+                             Your browser does not support the audio element.
+                         </audio>
+                      `;
+                 } else {
+                      audioSection.innerHTML = '<p>No audio generated (no text found).</p>';
+                 }
+             } catch (error) {
+                 audioSection.innerHTML = `<p style="color: red;">Error generating audio: ${error.message}</p>`;
+                 console.error('Error generating audio:', error);
+             }
+        }
+
+        async function requestSummary(uploadId, boxIndex) {
+             const summarySection = document.getElementById(`summarySection_${boxIndex}`);
+             summarySection.innerHTML = '<p>Generating summary...</p>';
+             try {
+                 const response = await fetch(`/api/summarize/${uploadId}/${boxIndex}`);
+                 if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                 }
+                 const data = await response.json();
+                 if (data.summary) {
+                      summarySection.innerHTML = `
+                         <h4>Summary:</h4>
+                         <p>${data.summary}</p>
+                      `;
+                 } else {
+                       summarySection.innerHTML = '<p>No summary generated (could not process text).</p>';
+                 }
+             } catch (error) {
+                 summarySection.innerHTML = `<p style="color: red;">Error generating summary: ${error.message}</p>`;
+                 console.error('Error generating summary:', error);
+             }
+        }
+
+        // Poll for status updates every 3 seconds
+        const statusInterval = setInterval(fetchStatus, 3000);
+
+        // Initial fetch
+        fetchStatus();
+
+    </script>
+</body>
+</html>
