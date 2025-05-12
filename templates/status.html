@@ -155,10 +155,17 @@
         function closeModal() {
             modalBackdrop.classList.add('hidden');
             resultModal.classList.add('hidden');
-             const audioElem = modalAudioSection.querySelector('audio');
-             if (audioElem) {
-                  audioElem.pause();
-             }
+            const audioElem = modalAudioSection.querySelector('audio');
+            if (audioElem) {
+                audioElem.pause();
+                // Reset custom audio player UI if exists
+                const playIcon = modalAudioSection.querySelector('.play-icon');
+                const pauseIcon = modalAudioSection.querySelector('.pause-icon');
+                if (playIcon && pauseIcon) {
+                    playIcon.style.display = 'block';
+                    pauseIcon.style.display = 'none';
+                }
+            }
         }
 
         async function requestAudio(uploadId, boxIndex) {
@@ -177,16 +184,102 @@
                  }
                  const data = await response.json();
                  if (data.audio_path) {
+                      // Create custom audio player UI
                       modalAudioSection.innerHTML = `
                          <h4>Audio:</h4>
-                         <audio controls>
-                             <source src="${data.audio_path}" type="audio/mpeg">
-                             Your browser does not support the audio element.
-                         </audio>
+                         <div class="custom-audio-player">
+                             <audio id="newsAudio" src="${data.audio_path}"></audio>
+                             <div class="audio-controls">
+                                 <button class="play-pause-btn">
+                                     <svg class="play-icon" viewBox="0 0 24 24">
+                                         <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                                     </svg>
+                                     <svg class="pause-icon" viewBox="0 0 24 24" style="display:none;">
+                                         <path fill="currentColor" d="M14,19H18V5H14M6,19H10V5H6V19Z" />
+                                     </svg>
+                                 </button>
+                                 <div class="progress-container">
+                                     <div class="progress-bar">
+                                         <div class="progress-indicator"></div>
+                                     </div>
+                                     <div class="time-display">
+                                         <span class="current-time">0:00</span>
+                                         <span class="duration">0:00</span>
+                                     </div>
+                                 </div>
+                                 <button class="volume-btn">
+                                     <svg viewBox="0 0 24 24">
+                                         <path fill="currentColor" d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
+                                     </svg>
+                                 </button>
+                             </div>
+                         </div>
                       `;
-                 } else {
+                      
+                      // Set up audio player functionality
+                      const audio = document.getElementById('newsAudio');
+                      const playPauseBtn = modalAudioSection.querySelector('.play-pause-btn');
+                      const playIcon = modalAudioSection.querySelector('.play-icon');
+                      const pauseIcon = modalAudioSection.querySelector('.pause-icon');
+                      const progressBar = modalAudioSection.querySelector('.progress-bar');
+                      const progressIndicator = modalAudioSection.querySelector('.progress-indicator');
+                      const currentTimeDisplay = modalAudioSection.querySelector('.current-time');
+                      const durationDisplay = modalAudioSection.querySelector('.duration');
+                      
+                      // Format time in minutes:seconds
+                      const formatTime = (seconds) => {
+                          const mins = Math.floor(seconds / 60);
+                          const secs = Math.floor(seconds % 60);
+                          return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                      };
+                      
+                      // Update audio player state
+                      const updateAudioState = () => {
+                          if (audio.paused) {
+                              playIcon.style.display = 'block';
+                              pauseIcon.style.display = 'none';
+                          } else {
+                              playIcon.style.display = 'none';
+                              pauseIcon.style.display = 'block';
+                          }
+                      };
+                      
+                      // Play/Pause button functionality
+                      playPauseBtn.addEventListener('click', () => {
+                          if (audio.paused) {
+                              audio.play();
+                          } else {
+                              audio.pause();
+                          }
+                          updateAudioState();
+                      });
+                      
+                      // Update progress bar and time displays
+                      audio.addEventListener('timeupdate', () => {
+                          const percent = (audio.currentTime / audio.duration) * 100;
+                          progressIndicator.style.width = `${percent}%`;
+                          currentTimeDisplay.textContent = formatTime(audio.currentTime);
+                      });
+                      
+                      // Allow seeking by clicking on progress bar
+                      progressBar.addEventListener('click', (e) => {
+                          const rect = progressBar.getBoundingClientRect();
+                          const pos = (e.clientX - rect.left) / rect.width;
+                          audio.currentTime = pos * audio.duration;
+                      });
+                      
+                      // Update duration once metadata is loaded
+                      audio.addEventListener('loadedmetadata', () => {
+                          durationDisplay.textContent = formatTime(audio.duration);
+                      });
+                      
+                      // Reset when audio ends
+                      audio.addEventListener('ended', () => {
+                          updateAudioState();
+                      });
+                  } else {
                       modalAudioSection.innerHTML = '<p>No audio generated (no text found or error).</p>';
-                 }
+                  }
              } catch (error) {
                  modalAudioSection.innerHTML = `<p style="color: #ff6b6b;">Error generating audio: ${error.message}</p>`;
                  console.error('Error generating audio:', error);
