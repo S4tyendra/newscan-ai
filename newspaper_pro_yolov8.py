@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 # Paths
 model_path = "best_30_epochs.pt"  # Update this to your local model path
-input_image_path = "IMG_20240904_171353626.jpg"  # Update this to your image path
+input_image_path = input("Path:")  # Update this to your image path
 output_dir = "cropped_boxes"
 
 # Load the YOLO model
@@ -54,5 +54,4 @@ for i, box in enumerate(results[0].boxes.xyxy):
         print(f"Text from box {i}:")
         print(cleaned_text)
         print()  # Print a newline for better readability
-
-cv2.destroyAllWindows()  # Close all OpenCV windows
+cv2.waitKey(1)
