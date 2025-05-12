@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newspaper Text Recognition</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Newspaper Image</h1>
+        <form action="/process/" method="post" enctype="multipart/form-data">
+            <div>
+                <label for="file">Choose image:</label>
+                <input type="file" id="file" name="file" accept="image/*" required>
+            </div>
+            <div class="language-select">
+                <label for="language">Select Language:</label>
+                <select id="language" name="language" required>
+                    <option value="english">English</option>
+                    <option value="hindi">Hindi</option>
+                    <option value="telugu">Telugu</option>
+                </select>
+            </div>
+            <button type="submit">Process Image</button>
+        </form>
+    </div>
+</body>
+</html>

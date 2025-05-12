@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Results</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="results-container"> <!-- Use results-container class -->
+        <h1>Processing Results (Upload ID: {{ upload_id }})</h1>
+        {% if processed_items %}
+            {% for item in processed_items %}
+                <div class="result-item">
+                    <h3>Detected Item {{ loop.index }}</h3>
+                    <img src="{{ item.image_path }}" alt="Cropped Newspaper Section">
+                    <h4>Extracted Text:</h4>
+                    <p>{{ item.text }}</p>
+                    {% if item.audio_path %}
+                        <h4>Audio:</h4>
+                        <audio controls>
+                            <source src="{{ item.audio_path }}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    {% else %}
+                        <p>No audio generated (no text found).</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No news sections detected or processed.</p>
+        {% endif %}
+        <p><a href="/">Upload another image</a></p>
+    </div>
+</body>
+</html>
