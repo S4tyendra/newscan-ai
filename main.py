@@ -43,7 +43,7 @@ PROCESSED_DIR = "processed_files"
 STATUS_FILE = "status.json"
 LOG_FILE = "logs.json"
 
-GEMINI_API_KEY = "AIzaSyBVVKW7jJaxndA04RDgqR0WxmyRA5ajby4"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL_NAME = "gemini-2.0-flash-lite"
 
 genai.configure(api_key=GEMINI_API_KEY)
